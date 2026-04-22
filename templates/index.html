@@ -6,22 +6,13 @@
     <title>Atelier Image IA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
-      import {
-        configureTheme,
-        defineAllComponents,
-      } from "https://cdn.jsdelivr.net/npm/igniteui-webcomponents@7.1.2/+esm";
+      import { configureTheme, defineAllComponents } from "https://cdn.jsdelivr.net/npm/igniteui-webcomponents@7.1.2/+esm";
 
       defineAllComponents();
       configureTheme("indigo", "dark");
     </script>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/igniteui-webcomponents@7.1.2/themes/dark/indigo.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;700&display=swap"
-    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/igniteui-webcomponents@7.1.2/themes/dark/indigo.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;700&display=swap" />
     <style>
       :root {
         --canvas: #090b10;
@@ -52,7 +43,9 @@
       .history-item {
         border: 1px solid var(--line);
         background: var(--surface-2);
-        transition: border-color 0.18s ease, transform 0.18s ease;
+        transition:
+          border-color 0.18s ease,
+          transform 0.18s ease;
       }
 
       .history-item:hover {
@@ -86,10 +79,7 @@
         <div>
           <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Studio</p>
           <h1 class="text-3xl leading-tight md:text-5xl">Atelier Image IA</h1>
-          <p class="mt-2 max-w-3xl text-sm text-slate-300 md:text-base">
-            Le prompt est envoye en <strong>POST JSON</strong> vers FastAPI. Les images sont affichees,
-            telechargees automatiquement sur disque, et historisees dans SQLite.
-          </p>
+          <p class="mt-2 max-w-3xl text-sm text-slate-300 md:text-base">Le prompt est envoye en <strong>POST JSON</strong> vers FastAPI. Les images sont affichees, telechargees automatiquement sur disque, et historisees dans SQLite.</p>
         </div>
         <igc-badge variant="info">gpt-image-2</igc-badge>
       </header>
@@ -107,13 +97,7 @@
         <section class="space-y-5">
           <article class="panel rounded-2xl p-4 md:p-6">
             <form id="generator-form" method="post" action="/api/generate" class="space-y-4">
-              <igc-textarea
-                id="prompt-input"
-                name="prompt"
-                label="Prompt"
-                rows="6"
-                placeholder="Un village africain traditionnel au coucher du soleil, style realiste"
-              ></igc-textarea>
+              <igc-textarea id="prompt-input" name="prompt" label="Prompt" rows="6" placeholder="Un village africain traditionnel au coucher du soleil, style realiste"></igc-textarea>
 
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <igc-select id="size-input" label="Taille">
@@ -189,8 +173,7 @@
       const setStatus = (message, variant = "success") => {
         statusText.textContent = message;
         generationBadge.setAttribute("variant", variant);
-        generationBadge.textContent =
-          variant === "danger" ? "Erreur" : variant === "warning" ? "Traitement" : "OK";
+        generationBadge.textContent = variant === "danger" ? "Erreur" : variant === "warning" ? "Traitement" : "OK";
       };
 
       const payloadFromForm = () => ({
@@ -214,11 +197,7 @@
             <p class="truncate text-slate-200">Local: ${localUrl}</p>
             <div class="flex flex-wrap gap-2">
               <a class="rounded-md border border-slate-600 px-2 py-1 text-slate-100 hover:border-slate-300" href="${localUrl}" target="_blank" rel="noopener noreferrer">Fichier local</a>
-              ${
-                remoteUrl
-                  ? `<a class="rounded-md border border-slate-600 px-2 py-1 text-slate-100 hover:border-slate-300" href="${remoteUrl}" target="_blank" rel="noopener noreferrer">Source distante</a>`
-                  : ""
-              }
+              ${remoteUrl ? `<a class="rounded-md border border-slate-600 px-2 py-1 text-slate-100 hover:border-slate-300" href="${remoteUrl}" target="_blank" rel="noopener noreferrer">Source distante</a>` : ""}
             </div>
           </div>
         `;
@@ -249,9 +228,7 @@
         div.className = "history-item w-full rounded-xl p-2 text-left";
         div.dataset.id = item.id;
 
-        const cover = item.cover_url
-          ? `<img src="${item.cover_url}" alt="Cover" class="h-24 w-full rounded-lg object-cover" />`
-          : `<div class="h-24 w-full rounded-lg bg-slate-800"></div>`;
+        const cover = item.cover_url ? `<img src="${item.cover_url}" alt="Cover" class="h-24 w-full rounded-lg object-cover" />` : `<div class="h-24 w-full rounded-lg bg-slate-800"></div>`;
 
         div.innerHTML = `
           ${cover}
@@ -288,7 +265,7 @@
       };
 
       const refreshHistory = async () => {
-        const response = await fetch("/api/history?limit=60", { method: "GET" });
+        const response = await fetch("/api/history?limit=15", { method: "GET" });
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.detail || "Impossible de charger l'historique");
