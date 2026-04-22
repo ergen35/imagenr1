@@ -13,3 +13,6 @@ wheels/
 /data/
 /generated/
 *.db
+
+# Local environment
+.env

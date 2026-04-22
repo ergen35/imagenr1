@@ -1,5 +1,7 @@
 import base64
 import binascii
+import json
+import logging
 import os
 import sqlite3
 import urllib.request
@@ -14,12 +16,38 @@ from openai import OpenAI, OpenAIError
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="Image Prompt App")
+logger = logging.getLogger("app.gpt_image")
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_FILE = BASE_DIR / "templates" / "index.html"
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "app.db"
 GENERATED_DIR = BASE_DIR / "generated"
+ENV_FILE = BASE_DIR / ".env"
+
+
+def load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+
+        if not key:
+            continue
+
+        if (value.startswith('"') and value.endswith('"')) or (
+            value.startswith("'") and value.endswith("'")
+        ):
+            value = value[1:-1]
+
+        os.environ.setdefault(key, value)
 
 
 def init_storage() -> None:
@@ -51,6 +79,7 @@ def init_storage() -> None:
         )
 
 
+load_env_file(ENV_FILE)
 init_storage()
 app.mount("/generated", StaticFiles(directory=GENERATED_DIR), name="generated")
 
@@ -75,11 +104,44 @@ def now_iso() -> str:
 
 
 def get_client() -> OpenAI:
-    api_key = os.getenv("OPENAI_API_KEY", "sk-afri-251db8b5a00f4c99ae6452839752f97de")
-    return OpenAI(
-        api_key=api_key,
-        base_url=os.getenv("OPENAI_BASE_URL", "https://build.lewisnote.com/v1"),
-    )
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="OPENAI_API_KEY manquante. Configure-la dans le fichier .env.",
+        )
+
+    base_url = os.getenv("OPENAI_BASE_URL", "https://build.lewisnote.com/v1")
+    return OpenAI(api_key=api_key, base_url=base_url)
+
+
+def get_openai_error_payload(exc: OpenAIError) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "error_type": exc.__class__.__name__,
+        "message": str(exc),
+    }
+
+    for key in ("status_code", "code", "param", "type", "request_id"):
+        value = getattr(exc, key, None)
+        if value is not None:
+            payload[key] = value
+
+    body = getattr(exc, "body", None)
+    if body is not None:
+        payload["body"] = body
+
+    response = getattr(exc, "response", None)
+    if response is not None:
+        payload["response_status_code"] = getattr(response, "status_code", None)
+        try:
+            response_text = response.text
+        except Exception:
+            response_text = None
+
+        if response_text:
+            payload["response_text"] = response_text[:4000]
+
+    return payload
 
 
 def create_generation(prompt: str) -> int:
@@ -332,6 +394,11 @@ def generate_images(payload: ImageGenerationRequest) -> dict:
         )
         raise
     except OpenAIError as exc:
+        error_payload = get_openai_error_payload(exc)
+        logger.exception(
+            "Echec requete gpt-image-2: %s",
+            json.dumps(error_payload, ensure_ascii=False, default=str),
+        )
         update_generation_status(
             generation_id=generation_id,
             status="failed",
