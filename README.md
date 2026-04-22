@@ -13,11 +13,19 @@ One-pager FastAPI pour saisir un prompt, generer des images via `gpt-image-2`, l
 uv sync
 ```
 
-## Variables d'environnement
+## Configuration `.env`
+
+1. Cree ton fichier `.env` a partir du modele:
 
 ```bash
-export OPENAI_API_KEY="sk-afri-votre-cle"
-export OPENAI_BASE_URL="https://build.lewisnote.com/v1"
+cp .env.example .env
+```
+
+2. Edite `.env` avec tes vraies valeurs:
+
+```env
+OPENAI_API_KEY=sk-afri-votre-cle
+OPENAI_BASE_URL=https://build.lewisnote.com/v1
 ```
 
 ## Lancer l'app
