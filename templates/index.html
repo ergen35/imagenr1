@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Atelier Image IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import {
+        configureTheme,
+        defineAllComponents,
+      } from "https://cdn.jsdelivr.net/npm/igniteui-webcomponents@7.1.2/+esm";
+
+      defineAllComponents();
+      configureTheme("indigo", "dark");
+    </script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/igniteui-webcomponents@7.1.2/themes/dark/indigo.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;700&display=swap"
+    />
+    <style>
+      :root {
+        --canvas: #090b10;
+        --surface: #12151d;
+        --surface-2: #1a1f2b;
+        --line: #2a3242;
+        --ink: #f2f4fa;
+        --muted: #97a2b7;
+      }
+
+      body {
+        font-family: "Manrope", sans-serif;
+        background-color: var(--canvas);
+        color: var(--ink);
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: "Fraunces", serif;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+      }
+
+      .history-item {
+        border: 1px solid var(--line);
+        background: var(--surface-2);
+        transition: border-color 0.18s ease, transform 0.18s ease;
+      }
+
+      .history-item:hover {
+        border-color: #4f6bff;
+        transform: translateY(-1px);
+      }
+
+      .history-item.active {
+        border-color: #7a8fff;
+      }
+
+      .img-frame {
+        background: #0f131c;
+        border: 1px solid var(--line);
+      }
+
+      igc-input,
+      igc-textarea,
+      igc-select {
+        width: 100%;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen">
+    <main class="mx-auto max-w-[1500px] px-4 py-4 md:px-8 md:py-6">
+      <header class="mb-5 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Studio</p>
+          <h1 class="text-3xl leading-tight md:text-5xl">Atelier Image IA</h1>
+          <p class="mt-2 max-w-3xl text-sm text-slate-300 md:text-base">
+            Le prompt est envoye en <strong>POST JSON</strong> vers FastAPI. Les images sont affichees,
+            telechargees automatiquement sur disque, et historisees dans SQLite.
+          </p>
+        </div>
+        <igc-badge variant="info">gpt-image-2</igc-badge>
+      </header>
+
+      <section class="grid grid-cols-1 gap-5 lg:grid-cols-[340px_1fr]">
+        <aside class="panel rounded-2xl p-4 md:p-5">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-xl">Historique</h2>
+            <igc-badge id="history-count" variant="primary">0</igc-badge>
+          </div>
+          <p class="muted mb-4 text-sm">Prompts deja generes avec la premiere image comme cover.</p>
+          <div id="history-list" class="space-y-3"></div>
+        </aside>
+
+        <section class="space-y-5">
+          <article class="panel rounded-2xl p-4 md:p-6">
+            <form id="generator-form" method="post" action="/api/generate" class="space-y-4">
+              <igc-textarea
+                id="prompt-input"
+                name="prompt"
+                label="Prompt"
+                rows="6"
+                placeholder="Un village africain traditionnel au coucher du soleil, style realiste"
+              ></igc-textarea>
+
+              <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <igc-select id="size-input" label="Taille">
+                  <igc-select-item value="1024x1024" selected>1024x1024</igc-select-item>
+                  <igc-select-item value="1536x1024">1536x1024</igc-select-item>
+                  <igc-select-item value="1024x1536">1024x1536</igc-select-item>
+                </igc-select>
+
+                <igc-select id="quality-input" label="Qualite">
+                  <igc-select-item value="high" selected>high</igc-select-item>
+                  <igc-select-item value="medium">medium</igc-select-item>
+                  <igc-select-item value="low">low</igc-select-item>
+                </igc-select>
+
+                <igc-input id="count-input" label="Nombre" type="number" min="1" max="4" value="1"></igc-input>
+
+                <div class="flex items-center rounded-xl border border-slate-700 bg-slate-900 px-3 py-2">
+                  <igc-switch id="transparent-input">Fond transparent</igc-switch>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-3">
+                <igc-button id="submit-btn" type="submit" variant="contained">Generer les images</igc-button>
+                <igc-badge id="generation-status" variant="success">Pret</igc-badge>
+              </div>
+
+              <p id="status" class="min-h-6 text-sm muted" aria-live="polite"></p>
+            </form>
+          </article>
+
+          <article class="panel rounded-2xl p-4 md:p-6">
+            <div class="mb-4 flex items-center justify-between">
+              <h2 class="text-2xl">Resultats</h2>
+              <span id="result-meta" class="text-xs uppercase tracking-[0.2em] text-slate-400">Aucune generation</span>
+            </div>
+            <div id="gallery" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"></div>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const form = document.getElementById("generator-form");
+      const promptInput = document.getElementById("prompt-input");
+      const sizeInput = document.getElementById("size-input");
+      const qualityInput = document.getElementById("quality-input");
+      const countInput = document.getElementById("count-input");
+      const transparentInput = document.getElementById("transparent-input");
+      const submitBtn = document.getElementById("submit-btn");
+      const statusText = document.getElementById("status");
+      const historyList = document.getElementById("history-list");
+      const historyCount = document.getElementById("history-count");
+      const generationBadge = document.getElementById("generation-status");
+      const resultMeta = document.getElementById("result-meta");
+      const gallery = document.getElementById("gallery");
+
+      let activeHistoryId = null;
+
+      const shortDate = (isoValue) => {
+        try {
+          return new Date(isoValue).toLocaleString("fr-FR", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } catch {
+          return isoValue;
+        }
+      };
+
+      const setStatus = (message, variant = "success") => {
+        statusText.textContent = message;
+        generationBadge.setAttribute("variant", variant);
+        generationBadge.textContent =
+          variant === "danger" ? "Erreur" : variant === "warning" ? "Traitement" : "OK";
+      };
+
+      const payloadFromForm = () => ({
+        prompt: (promptInput.value || "").trim(),
+        size: sizeInput.value,
+        quality: qualityInput.value,
+        n: Number(countInput.value || 1),
+        transparent: Boolean(transparentInput.checked),
+      });
+
+      const createImageCard = (item, index) => {
+        const article = document.createElement("article");
+        article.className = "overflow-hidden rounded-xl img-frame";
+
+        const localUrl = item.local_url || "";
+        const remoteUrl = item.remote_url || "";
+
+        article.innerHTML = `
+          <img src="${localUrl}" alt="Image ${index + 1}" class="h-60 w-full object-cover" />
+          <div class="space-y-2 p-3 text-sm">
+            <p class="truncate text-slate-200">Local: ${localUrl}</p>
+            <div class="flex flex-wrap gap-2">
+              <a class="rounded-md border border-slate-600 px-2 py-1 text-slate-100 hover:border-slate-300" href="${localUrl}" target="_blank" rel="noopener noreferrer">Fichier local</a>
+              ${
+                remoteUrl
+                  ? `<a class="rounded-md border border-slate-600 px-2 py-1 text-slate-100 hover:border-slate-300" href="${remoteUrl}" target="_blank" rel="noopener noreferrer">Source distante</a>`
+                  : ""
+              }
+            </div>
+          </div>
+        `;
+
+        return article;
+      };
+
+      const renderGallery = (images = [], generationId = null, createdAt = null) => {
+        gallery.innerHTML = "";
+
+        if (!images.length) {
+          resultMeta.textContent = "Aucune image";
+          return;
+        }
+
+        images.forEach((item, index) => {
+          gallery.appendChild(createImageCard(item, index));
+        });
+
+        const label = generationId ? `Generation #${generationId}` : "Generation";
+        const datePart = createdAt ? ` • ${shortDate(createdAt)}` : "";
+        resultMeta.textContent = `${label}${datePart}`;
+      };
+
+      const historyItemTemplate = (item) => {
+        const div = document.createElement("button");
+        div.type = "button";
+        div.className = "history-item w-full rounded-xl p-2 text-left";
+        div.dataset.id = item.id;
+
+        const cover = item.cover_url
+          ? `<img src="${item.cover_url}" alt="Cover" class="h-24 w-full rounded-lg object-cover" />`
+          : `<div class="h-24 w-full rounded-lg bg-slate-800"></div>`;
+
+        div.innerHTML = `
+          ${cover}
+          <div class="mt-2 space-y-1">
+            <p class="line-clamp-2 text-sm text-slate-100">${item.prompt}</p>
+            <p class="text-xs text-slate-400">${shortDate(item.created_at)}</p>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-300">${item.image_count} image(s)</span>
+              <span class="text-slate-400">${item.status}</span>
+            </div>
+          </div>
+        `;
+
+        div.addEventListener("click", () => openHistoryItem(item.id));
+        return div;
+      };
+
+      const renderHistory = (items) => {
+        historyList.innerHTML = "";
+        historyCount.textContent = String(items.length);
+
+        if (!items.length) {
+          historyList.innerHTML = '<p class="text-sm text-slate-400">Aucun prompt genere pour le moment.</p>';
+          return;
+        }
+
+        items.forEach((item) => {
+          const el = historyItemTemplate(item);
+          if (Number(item.id) === Number(activeHistoryId)) {
+            el.classList.add("active");
+          }
+          historyList.appendChild(el);
+        });
+      };
+
+      const refreshHistory = async () => {
+        const response = await fetch("/api/history?limit=60", { method: "GET" });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Impossible de charger l'historique");
+        }
+        renderHistory(data.items || []);
+      };
+
+      const openHistoryItem = async (generationId) => {
+        try {
+          const response = await fetch(`/api/history/${generationId}`, { method: "GET" });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.detail || "Generation introuvable");
+          }
+
+          activeHistoryId = generationId;
+          renderGallery(data.images || [], data.id, data.created_at);
+          setStatus(`Prompt charge: ${data.prompt}`, "success");
+          await refreshHistory();
+        } catch (error) {
+          setStatus(error.message, "danger");
+        }
+      };
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const payload = payloadFromForm();
+        if (!payload.prompt) {
+          setStatus("Le prompt est obligatoire.", "danger");
+          return;
+        }
+
+        submitBtn.disabled = true;
+        setStatus("Generation en cours...", "warning");
+
+        try {
+          const response = await fetch(form.action, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.detail || "Erreur inconnue");
+          }
+
+          activeHistoryId = data.id;
+          renderGallery(data.images || [], data.id);
+          setStatus("Generation terminee et images sauvegardees sur disque.", "success");
+          await refreshHistory();
+        } catch (error) {
+          setStatus(error.message, "danger");
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+
+      (async () => {
+        try {
+          await refreshHistory();
+        } catch (error) {
+          setStatus(error.message, "danger");
+        }
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+[project]
+name = "image-prompt-app"
+version = "0.1.0"
+description = "One-page FastAPI app to generate images from prompts"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.116.1",
+    "openai>=2.1.0",
+    "uvicorn>=0.36.0",
+]
